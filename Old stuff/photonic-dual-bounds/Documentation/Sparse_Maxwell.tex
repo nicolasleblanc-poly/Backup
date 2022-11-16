@@ -1,0 +1,81 @@
+%\documentclass[12pt,twocolumn]{article}
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry} 
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage{physics}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{verbatim}
+
+\newcommand\numthis{\stepcounter{equation}\tag{\theequation}}
+\newcommand\A{\mathbb{A}}
+\newcommand\G{\mathbb{G}}
+\newcommand\T{\mathbb{T}}
+\newcommand\V{\mathbb{V}}
+\newcommand\W{\mathbb{W}}
+\newcommand\I{\mathbb{I}}
+\newcommand\D{\mathbb{D}}
+\newcommand\U{\mathbb{U}}
+\newcommand\Proj{\mathbb{P}}
+\newcommand\M{\mathcal{M}}
+\newcommand\eps{\epsilon}
+\newcommand\om{\omega}
+\newcommand\Asym{\text{Asym}}
+\newcommand\Sym{\text{Sym}}
+
+\begin{document}
+\title{Sparse computational formulation of dual bounds based on Maxwell Operator}
+\author{Pengning Chao}
+\maketitle
+
+\section{Original Formulation with Explicit Green's Function}
+In the original formulation, the primal optimization is over polarization currents represented by the image of the source under the $\T$ operator $\ket{\vb{T}}=\T \ket{\vb{S}}$. The fundamental scattering relation is
+\begin{equation}
+\I_d = \I_d(\V^{-1} - \G_{dd}) \T
+\end{equation}
+where $\I_d$ is the spatial projection onto the design region, $\V^{-1} = \chi^{-1} \I_d$, and $\G_{dd}$ is the Green's function restricted to the design domain. This can be generalized with the additional application an arbitrary operator $\Proj$ that commutes with $\I_d$:
+\begin{equation}\label{eq:proj_scatter}
+\Proj = \I_d (\Proj\V^{-1} - \Proj\G_{dd}) \T
+\end{equation}
+In practice $\Proj$ is often a spatial projection into a subregion of the entire design region. From this we can formulate scalar constraints of the form
+\begin{equation}
+\bra{\vb{S}}\Proj^\dagger\ket{\vb{T}} - \bra{\vb{T}}(\V^{-1}\Proj^\dagger - \G_{dd}\Proj^\dagger)\ket{\vb{T}} = 0
+\end{equation}
+
+\section{Sparse Formulation with Maxwell Operator}
+The drawback to the original formulation is that $\G_{dd}$ is a dense matrix using a localize spatial basis representation, e.g., a finite difference grid. This leads poor scaling of dual optimization calculations with problem size. Noting that the inverse of the Green's function is proportional to the Maxwell operator $\M=(\curl\curl) - \eps_0 \om^2/c^2$, which is sparse under a localized spatial basis, we would like to reformulate the numerics based on $\M$. 
+
+By pull out factors of $G_{dd}$ we can rewrite (\ref{eq:proj_scatter}) as
+\begin{equation}
+\G_{dd}^\dagger \G_{dd}^{\dagger-1} \Proj = \I_d \G_{dd}^\dagger (\G_{dd}^{\dagger-1} \Proj \V^{-1} \G_{dd}^{-1} - \G_{dd}^{\dagger-1}\Proj) \G_{dd} \T
+\end{equation}
+leading to scalar constraints of the form
+\begin{equation}
+\bra{\vb{S}} \Proj^\dagger \G_{dd}^{-1} (\G_{dd}\ket{\vb{T}}) - (\bra{\vb{T}}\G_{dd}^\dagger) (\G_{dd}^{\dagger-1} \V^{\dagger-1}\Proj^\dagger\G_{dd}^{-1} - \Proj^\dagger\G_{dd}^{-1}) (\G_{dd} \ket{\vb{T}})
+\end{equation}
+We can now declare that $\G_{dd} \ket{\vb{T}}$ will henceforth be our primal optimization variable. Now the dual optimization involves matrices composed of just $\V$, $\G_{dd}^{-1}$, and diagonal projections $\Proj$ which are all sparse, allowing for much better problem scaling.
+
+\subsection{Computing $\G_{dd}^{-1}$}
+From the basic relations $\M\vb{E} = i\om\vb{J}$ and $\vb{E} = (iZ/k)\G \vb{J}$ we have
+\begin{equation}
+\M\G = (k^2/\mu_0) \I
+\end{equation}
+where the un-subscripted operators are over all space. We divide space into the design region and background region, delimited by $d$ and $b$ subscripts, respectively. 
+
+\begin{equation}
+\G = \frac{k^2}{\mu_0} \M^{-1} = \frac{k^2}{\mu_0} \mqty[\M_{bb} & \M_{bd} \\ \M_{db} & \M_{dd}]^{-1}
+\end{equation}
+and making use of the block matrix inversion formula
+\begin{equation}
+\mqty[A & B \\ C & D]^{-1} = \mqty[A^{-1} + A^{-1}B(D-CA^{-1}B)^{-1}CA^{-1} & -A^{-1} B (D-CA^{-1}B)^{-1} \\ -(D-CA^{-1}B)^{-1}CA^{-1} & (D-CA^{-1}B)^{-1}]
+\end{equation}
+we have
+\begin{align*}
+G_{dd} &= \frac{k^2}{\mu_0} (\M_{dd} - \M_{db}\M_{bb}^{-1}\M_{bd})^{-1} \\
+G_{dd}^{-1} &= \frac{\mu_0}{k^2} (\M_{dd} - \M_{db}\M_{bb}^{-1}\M_{bd}) \numthis
+\end{align*}
+
+In practice the background parts of $\M$ contain the boundary settings for the computational space, e.g., periodic boundary conditions or PML. For a spatially localized representation both $\M_{dd}$ and $\M_{db}\M_{bb}^{-1}\M_{bd}$ are sparse.
+\end{document}
